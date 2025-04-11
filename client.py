@@ -83,6 +83,76 @@ class MCPClient:
             parts = [types.Part.from_text(text=query)]  # Convert Text query to Gemini-Compatable Format
         )
 
+        # Send user input to Gemini AI and Include available tools for function calling 
+        response = self.genai_client.models.generate_content(
+            model='gemini-2.0-flash-001',
+            contents=[user_prompt_content],
+            config=types.GenerateContentConfig(
+                tools=self.function_declarations,
+            )
+        )
+
+        # Stores for Messages
+        final_text = []
+        assistant_message_content = []
+
+        # Process Response recieved from Gemini
+        for candidate in response.candidates:
+            if candidate.content.parts:
+                for part in candidate.content.parts:
+                    if isinstance(part, types.Part):
+                        if part.function_call:
+                            function_call_part = part
+                            tool_name = function_call_part.function_call.name
+                            tool_args = function_call_part.function_call.args
+
+                            print(f"\nGemini Requested Tool call: {tool_name} with args {tool_args}")
+
+                            # execute using MCP Server
+                            try:
+                                result = await self.session.call_tool(tool_name, tool_args)
+                                function_response = {"result": result.content}
+                            except Exception as e:
+                                function_response = {"error": str(e)}
+                            
+                            # Format Tool Response for Gemini
+                            function_response_part = types.Part.from_function_response(
+                                name=tool_name,
+                                response=function_response
+                            )
+
+                            # Structure the tool response as Content Object
+                            function_response_content = types.Content(
+                                role='tool',
+                                parts=[function_response_part]
+                            )
+
+                            # Send tool execution results back to Gemini
+                            response = self.genai_client.models.generate_content(
+                                model='gemini-2.0-flash-001',
+                                contents=[
+                                    user_prompt_content,
+                                    function_call_part,
+                                    function_response_part,
+                                ],
+                                config=types.GenerateContentConfig(
+                                    tools=self.function_declarations,
+                                ),
+                            )
+
+                            # Final Response
+                            final_text.append(response.candidates[0].content.parts[0].text)
+                        else:
+                            # If no Function call
+                            final_text.append(part.text)
+
+        # Return Combined String
+        return "\n".join(final_text)
+    
+    async def chat_loop(self):
+        """Run an Interactive chat session with user"""
+        
+
 
 
 def main():
