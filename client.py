@@ -151,13 +151,81 @@ class MCPClient:
     
     async def chat_loop(self):
         """Run an Interactive chat session with user"""
-        
+        print("\nMCP Client Started! Type 'quit' to exit.")
 
+        while True:
+            query = input("\nQuery: ").strip()
+            if query.lower() == 'quit':
+                break
 
+            # Process User's Query & Display Response
+            response = await self.process_query(query)
+            print("\n" + response)
 
-def main():
-    print("Hello from gemini-mcp-client-pythonsdk!")
+    async def cleanup(self):
+        """Clean up resources before exiting."""
+        await self.exit_stack.aclose()
 
+def clean_schema(schema):
+    """
+    Recursively removes 'title' fields from the JSON schema.
+
+    Args:
+        schema (dict): The Schema dictionary.
+
+    Returns:
+        dict: Cleaned schema without 'title' fields.
+    """
+    if isinstance(schema, dict):
+        schema.pop("title", None)
+
+        # Recursively clean nested properties
+        if "properties" in schema and isinstance(schema["properties"], dict):
+            for key in schema["properties"]:
+                schema["properties"][key] = clean_schema(schema["properties"][key])
+
+    return schema
+
+def convert_mcp_tools_to_gemini(mcp_tools):
+    """
+    Converts MCP Tool Defination to the current format for Gemini API Function Calling
+    
+    Args:
+        mcp_tools (list): List of MCP tool objects with 'name', 'description' and 'inputSchema'.
+    
+    Returns:
+        list: List of Gemini Tool objects with properly formatted function declarations.
+    """
+    gemini_tools = []
+
+    for tool in mcp_tools:
+        # Ensure Input Schema is in a Valid JSON Schema and clean it
+        parameters = clean_schema(tool.inputSchema)
+
+        function_declaration = FunctionDeclaration(
+            name=tool.name,
+            description=tool.description,
+            parameters=parameters,
+        )
+
+        # Wrap in Tool Object
+        gemini_tool = Tool(function_declarations=[function_declaration])
+        gemini_tools.append(gemini_tool)
+    
+    return gemini_tools
+
+async def main():
+    """Main function to start the MCP Client."""
+    if len(sys.argv) < 2:
+        print("Usage: uv run client.py <path-to-server-script>")
+        sys.exit(1)
+    client = MCPClient()
+    try:
+        # Connect with MCP Server & Start the chat loop
+        await client.connect_to_server(sys.argv[1])
+        await client.chat_loop()
+    finally:
+        await client.cleanup()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
