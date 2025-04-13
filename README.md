@@ -21,6 +21,7 @@ uv run client.py <PATH-TO-MCP-SERVER>
 ```
 
 **Note**: MCP Server must be created using PythonSDK & must be Using `stdio` transport
+
 **Note**: It is recommended to run the server using unix based platforms, since asyncio is not very stable in windows, i personally recommend using `wsl` for windows users.
 
 
