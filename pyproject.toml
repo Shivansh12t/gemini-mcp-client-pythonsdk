@@ -1,7 +1,7 @@
 [project]
 name = "gemini-mcp-client-pythonsdk"
 version = "0.1.0"
-description = "Add your description here"
+description = "A Simple Gemini + MCP Client for local stdio MCP Servers"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
