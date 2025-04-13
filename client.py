@@ -141,10 +141,10 @@ class MCPClient:
                             )
 
                             # Final Response
-                            final_text.append(response.candidates[0].content.parts[0].text)
+                            final_text.append(response.candidates[0].content.parts[0].text or "")
                         else:
                             # If no Function call
-                            final_text.append(part.text)
+                            final_text.append(part.text or "")
 
         # Return Combined String
         return "\n".join(final_text)
